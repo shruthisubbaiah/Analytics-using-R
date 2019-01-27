@@ -10,8 +10,10 @@ all_boroughs<-unique(nydata$BOROUGH)
 num_boroughs<-length(all_boroughs[all_boroughs !=""])
 num_boroughs
 
-#Alternate- Using the dplyr package- We could not exclude the empty string Borough names
-summarise(nydata,number_bor=n_distinct(BOROUGH))
+#Alternate- Using the dplyr package
+boroughs<-nydata$BOROUGH[nydata$BOROUGH!=""]
+n_distinct(boroughs)
+
 
 #2. Number of persons who got injured in each borough
 summarise(group_by(nydata,BOROUGH),count_inj=sum(NUMBER.OF.PERSONS.INJURED,na.rm=TRUE)) %>%
@@ -45,6 +47,6 @@ nydata$Year<-str_sub(nydata$DATE,-4,-1)
 summarise(group_by(nydata, Year), num_injured = sum(NUMBER.OF.PERSONS.INJURED, na.rm = TRUE), num_killed = sum(NUMBER.OF.PERSONS.KILLED, na.rm = TRUE)) %>%
   arrange(desc(Year))
 
-paste0("The number of people injured and number of people killed doubled in 2013.After 2013, the numbers decreased by a very small amount in 2014 and 2015, and then increased again on 2016,remaining constant in 2017.In 2018, there has been a small decrease in the number of persons killed and injured.")
+paste0("The number of people injured and number of people killed doubled in 2013.After 2013, the numbers decreased by a very small amount in 2014 and 2015.Though the number of persons injured in 2016 increased by a significant amount, the number of persons killed in 2016 remained almost the same as 2015. Also, the number of people injured in 2018 is nearly same as in 2013-2015, but the number of people killed in 2018 is significantly lower than in 2013-2015.")
 
 
