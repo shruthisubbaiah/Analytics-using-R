@@ -1,0 +1,304 @@
+---
+title: "Project 1: Boston Crime Data Analysis and Visualization"
+author: "Dipti Bhattad & Shruthi Subbaiah Machimada"
+date: "February 19, 2019"
+output: word_document
+---
+
+Reading the csv file and subsetting the data
+
+```{r}
+crime <- read.csv("~/Desktop/Visualization/BostonCrime.csv")
+
+crime_subset <- subset(crime, year >2015 & year <2019)
+
+crime_shooting <- subset(crime_subset, shooting == 'Y')
+```
+
+(Since data for full years is available only for 2016-2018, disregarding other years- 2015 and 2019)
+
+Loading the libraries
+
+```{r}
+library('ggplot2')
+library('dplyr')
+library('gridExtra')
+```
+
+Year-wise trend in Crimes and Shootings
+
+```{r}
+p1<-ggplot(data=summarise(group_by(crime_subset,year),incidents=n()),
+       aes(year, incidents)) + scale_x_continuous(breaks=seq(2016,2018,1))+
+  geom_line(color="blue")+ geom_point(size=1.5,color="dark blue") + ylab("Total # of crimes") + xlab("Year") + theme_classic() + ggtitle("Total Crimes by Year")
+
+p2<-ggplot(data=summarise(group_by(crime_shooting,year),shooting=n()),
+       aes(year, shooting)) + scale_x_continuous(breaks=seq(2016,2018,1))+scale_y_continuous(breaks=seq(50,500,25))+
+  geom_line(color="orange") + geom_point(size=1.5,color="dark orange") + ylab("Total # of shootings") + xlab("Year") + theme_classic() 
+
+grid.arrange(p1,p2)
+```
+2017 had a huge increase in crimes. This was observed in all major cities across the US. 
+
+Month-wise trend in Crimes
+```{r}
+month_crimes<-crime_subset %>% group_by(year,month) %>% count()
+month_crimes$month<-month.abb[month_crimes$month]
+month_crimes$id<-rep(1:12,3)
+ggplot(data=month_crimes,aes(reorder(month,id),n)) + geom_line(aes(group=as.factor(year),color=as.factor(year)), lwd = 0.75) + ylab("Total number of crimes ")+ xlab("Months") + theme_classic() + theme(legend.title=element_blank()) + ggtitle("Total Crimes by Months")
+```
+Feburary seems to be the month with least crimes. Looking into the mean crimes per day will help us test that.
+
+Mean crimes per day
+```{r}
+x<-tidyr::separate(crime_subset,occurred_on_date,c("date","time"),sep=" ")
+daily_crimes_cnt<-summarise(group_by(x,month,date,year),crime_count=n())
+mean(daily_crimes_cnt$crime_count)
+```
+
+Mean crimes per day for each month
+
+```{r}
+daily_avg_by_month<-summarise(group_by(daily_crimes_cnt,year,month),daily_avg=mean(crime_count))
+daily_avg_by_month$month<-month.abb[daily_avg_by_month$month]
+daily_avg_by_month$id<-rep(1:12,3)
+```
+
+Plot of daily means for each month
+
+```{r}
+ggplot(data=daily_avg_by_month,
+       aes(reorder(month,id), daily_avg)) +
+  geom_line(aes(group=as.factor(year),color=as.factor(year)), lwd = 0.75) + ylab("Average crimes per day ") + xlab("Months") +ylim(240,310) + theme_classic() + theme(legend.title=element_blank()) + ggtitle("Mean Crimes (each day) by Months")
+```
+Feburary does not have the least mean crimes per day for every year. The drop in crimes in Feburary may be because Feburary has lesser number of days.
+Most crimes occur between May to September. This may be because the weather is warmer in summer, or because the days are longer and most crimes occur during the day.
+
+
+Hour-wise trend in Crimes
+
+```{r}
+p1 <- ggplot(data = crime_subset) + geom_histogram(mapping = aes(x=hour),fill=c(rep("#333333",6),rep("#FFFF99",6),rep("#FFCC00",6),rep("#FF6633",6)),width=1,stat="count", color = "white") +ylab("Number of crimes")+theme_classic()+scale_x_continuous(breaks=seq(0,23,1)) + ggtitle("Total Crimes by Hours")
+
+p2 <- ggplot(data = crime_shooting) + geom_histogram(mapping = aes(x=hour),fill=c(rep("#333333",6),rep("#FFFF99",5),rep("#FFCC00",6),rep("#FF6633",6)),width=1,stat="count", color = "white") +ylab("Number of shootings")+theme_classic()+scale_x_continuous(breaks=seq(0,23,1))
+
+grid.arrange(p1,p2)
+```
+The colours depict the 4 times in a day -Night, Morning, Noon and Evening. The crimes decrease after night and are least in the early hours of morning. The crimes increase again during the day.
+Most crimes occur during the day.
+Most shootings occur in the evening and night.
+
+
+Crimes on few Main Holidays- 4th of July, Thanksgiving Day, Christmas and New Years Eve
+
+```{r}
+x<-tidyr::separate(crime_subset,occurred_on_date,c("date","time"),sep=" ")
+dec25 <- subset(x,date %in% c("2018-12-25","2017-12-25","2016-12-25"))
+dec31 <- subset(x,date %in% c("2018-12-31","2017-12-31","2016-12-31"))
+thanksgiving <- subset(x,date %in% c("2018-11-22","2017-11-23","2016-11-24"))
+independence <- subset(x,date %in% c("2018-07-04","2017-07-04","2016-07-04"))
+
+#install.packages("directlabels")
+library('directlabels')
+
+ggplot()+
+  geom_line(data=summarise(group_by(dec25,year),incidents=n()), mapping = aes(x = year, y = incidents, color = "#fe5970")) + geom_point(data=summarise(group_by(dec25,year),incidents=n()), mapping = aes(x = year, y = incidents),size=1.5, color="yellow3") +
+geom_dl(data=summarise(group_by(dec25,year),incidents=n()), mapping = aes(x = year, y = incidents,label = "Dec 25"), method = "top.qp") +
+  geom_line(data=summarise(group_by(dec31,year),incidents=n()), mapping = aes(x = year, y = incidents, color = "#56B4E9")) + geom_point(data=summarise(group_by(dec31,year),incidents=n()), mapping = aes(x = year, y = incidents),size=1.5, color="dark green") +
+geom_dl(data=summarise(group_by(dec31,year),incidents=n()), mapping = aes(x = year, y = incidents,label = "Dec 31"), method = "smart.grid") +
+  geom_line(data=summarise(group_by(thanksgiving,year),incidents=n()), mapping = aes(x = year, y = incidents, color = "#E69F00")) + geom_point(data=summarise(group_by(thanksgiving,year),incidents=n()), mapping = aes(x = year, y = incidents),size=1.5, color="dark blue") +
+geom_dl(data=summarise(group_by(thanksgiving,year),incidents=n()), mapping = aes(x = year, y = incidents,label = "Thanksgiving"), method = "smart.grid") +
+  geom_line(data=summarise(group_by(independence,year),incidents=n()), mapping = aes(x = year, y = incidents, color = "#999999")) + geom_point(data=summarise(group_by(independence,year),incidents=n()), mapping = aes(x = year, y = incidents),size=1.5, color="red") +
+geom_dl(data=summarise(group_by(independence,year),incidents=n()), mapping = aes(x = year, y = incidents,label = "4th of July"), method = "top.qp") + scale_x_continuous(breaks=seq(2016,2018,1)) + theme_classic() + theme(legend.title=element_blank()) + ggtitle("Total Crimes on Main Holidays") + xlab("Year") + ylab("Count of Crimes")
+
+```
+On Thanksgiving and Christmas, the number of crimes is a lot less that the mean number of crimes per day for those months.
+
+Day-wise trend in Crimes
+
+```{r}
+d <- summarise(group_by(crime_subset,day_of_week),incidents=n()) %>% arrange(desc(incidents))
+ggplot(d, aes(x = reorder(day_of_week,incidents), y = incidents)) + geom_bar(stat = "identity", fill = "blue", color = "grey40", alpha = .5, width = 0.5, size = 0.5) + coord_flip() + ggtitle("Crimes by Days") + theme_classic() + xlab("Day of Week") + ylab("Count")
+```
+Most crime occur in Friday and the least occur on Saturday and Sunday. Weekends in Boston may be safer than weekdays.
+
+
+Percentage of UCR crimes
+
+```{r}
+temp <- summarise(group_by(crime_subset,ucr_part), total_count = n())
+data <- filter(temp, ucr_part %in% c("Part One", "Part Two", "Part Three"))
+pct <- round(data$total_count/sum(data$total_count)*100)
+lbls <- paste(data$ucr_part, pct) # add percents to labels
+lbls <- paste(lbls,"%",sep="") # ad % to labels 
+pie(data$total_count,labels = lbls, main="Pie Chart of Uniform Crime Reporting Codes", col = c("yellow3", "violetred1", "deepskyblue"))
+```
+The most common crimes are Ucr Part3 crimes, which are not very violent.
+
+
+Top 5 UCR Part 1 crimes
+
+### UCR Part 1 crimes
+```{r}
+ucr_part1 <- subset(crime_subset, ucr_part == "Part One")
+```
+
+### Top crimes in ucr part 1
+```{r}
+top_crimes_ucrpart1 <- ucr_part1 %>% count(offense_code_group) %>% arrange(desc(n)) %>% top_n(5)
+top_crimes_ucrpart1_v <- as.character(top_crimes_ucrpart1$offense_code_group)
+top_crimes_ucrpart1$Crime_Count <- top_crimes_ucrpart1$n
+```
+
+### Treemaps for most common ucr part 1 crimes
+```{r}
+library(treemapify)
+ggplot(top_crimes_ucrpart1, aes(area=Crime_Count,label=offense_code_group,fill=Crime_Count))+geom_treemap()+ geom_treemap_text(fontface = "italic", colour = "black", place = "centre",grow = FALSE)+ggtitle("Most Common UCR Part One crimes") + scale_fill_gradient(low = "yellow", high = "dark orange")
+```
+
+Year-wise Trend in Top 5 UCR Part One Crimes
+
+```{r}
+df1 <- subset(ucr_part1, offense_code_group %in% top_crimes_ucrpart1_v)
+ggplot(data = summarise(group_by(df1,offense_code_group,year), crime_count_ucr1=n())) + geom_line(aes(year,crime_count_ucr1, color = offense_code_group), lwd = 0.75) + geom_point(aes(year,crime_count_ucr1),size=1,color="black") + xlab("Year") + ylab("Total Number of Crimes") + scale_x_continuous(breaks=seq(2016,2018,1)) + theme_classic() + ggtitle("Trend of Top 5 UCR Part One Crimes by Year")
+```
+
+
+Distribution of Top 5 UCR Part 1 Crimes Across Top 5 Unsafest Districts
+
+### Unsafe districts in ucr part 1
+```{r}
+unsafe_dist_ucr1 <- ucr_part1 %>% count(district) %>% arrange(desc(n)) %>% top_n(5)
+unsafe_dist_ucr1_v <- as.character(unsafe_dist_ucr1$district)
+```
+
+### Heatmap for all years together
+```{r}
+heatmap_data = subset(ucr_part1, offense_code_group %in% top_crimes_ucrpart1_v & district %in% unsafe_dist_ucr1_v)
+ggplot(data = summarise(group_by(heatmap_data,district,offense_code_group), cc = n())) + geom_tile(aes(x=district,y=offense_code_group, fill=cc)) + scale_fill_gradient2(low = "beige", mid = "orange", high = "brown", midpoint = 3500) + ggtitle("Heatmap for all years") + xlab("Districts") + ylab("Crimes")
+
+```
+Larceny, the most common UCR Part 1 crime is highly distributed across all districts. The next common crime is Larceny from Motor Vehicle, which is not that high.
+The distribution of these crimes were similar for all years, so we aggregated all years in one heatmap.
+
+
+Map of Boston districts and the distribution of crime across them
+```{r}
+library(maptools)
+#area<-readShapePoly("Boston_Neighborhoods.shp") 
+#area_df<-fortify(area)
+area_df<-read.csv("~/Desktop/Visualization/Area_Maps.csv")
+area_df$safety<-3
+#Most crimes
+#Roxbury
+area_df <- within(area_df, safety[group == 8.1] <- 0) #B2
+area_df <- within(area_df, safety[group == 2.1] <- 0) #B2
+area_df <- within(area_df, safety[group == 3.1] <- 0) #B2
+#Dorchester
+area_df <- within(area_df, safety[group == 21.1] <- 0.7) #C11
+#Fenway,Backbay
+area_df<-within(area_df, safety[group == 16.1] <- 1) #D4
+#Mattapan
+area_df<-within(area_df, safety[group == 20.1] <- 1.5) #B3
+#Least crimes
+area_df<-within(area_df, safety[group == 12.1] <- 6) #A15
+area_df<-within(area_df, safety[group == 11.1] <- 5) #A7
+area_df<-within(area_df, safety[group == 18.1] <- 4.5) #E5
+area_df<-within(area_df, safety[group == 19.1] <- 4) #E18
+ggplot(area_df,aes(x=long,y=lat,group=group,fill=safety))+geom_polygon(color="black")+theme_void()+scale_fill_gradient(low = "red", high = "yellow3")
+```
+Most populated- Dorchester(Red) and Roxbury (Dark Red)
+Most number of crimes- Roxbury (Dark Red) and Dorchester(Red)
+Most number of shootings - Roxbury (Dark Red) and Mattapan(light red)
+Most number of UCR Part 1 crimes - Fenway, BackBay and Downtown (Orange)
+Safest areas (Least crimes) - East Boston, Charleston (Light green)
+
+
+Has the safety of districts changed over the years
+
+```{r}
+unsafe_dist <- crime_subset %>% count(district) %>% arrange(desc(n)) %>% top_n(5)
+unsafe_dist
+unsafe_dist_v <- as.character(unsafe_dist$district)
+```
+```{r}
+df2 <- subset(crime_subset, district %in% unsafe_dist_v)
+p1<-ggplot(data = summarise(group_by(df2,district,year), crime_count_dist=n())) + geom_line(aes(year,crime_count_dist, color = district)) + scale_x_continuous(breaks=seq(2016,2018,1))+ylab("Crime count")+theme_classic()
+
+df_ucr<-subset(ucr_part1,district %in% unsafe_dist_v)
+p2<-ggplot(data = summarise(group_by(df_ucr,district,year), crime_count_dist=n())) + geom_line(aes(year,crime_count_dist, color = district)) + scale_x_continuous(breaks=seq(2016,2018,1))+ylab("Ucr Part1 crimes count")+theme_classic()
+
+grid.arrange(p1,p2)
+```
+
+The crimes in Roxbury and Dorchester have decreased in 2018, when compared to 2016 and 2017. But the UCR Part 1 crimes in these
+districts have remained the same.
+Given more historic data we would be able to find trends.
+
+Unsafe Streets in Boston
+```{r}
+unsafe_streets = crime_subset %>% count(street) %>% arrange(desc(n)) %>% top_n(11)
+unsafe_streets <- unsafe_streets[c(1,3:11),]
+unsafe_streets$Crime_Count <- unsafe_streets$n
+#unsafe_streets
+```
+
+
+Unsafe streets in Dorchester and Roxbury
+```{r}
+unsafe_street_RoxDorch = filter(crime_subset,district=="B2" |district=="C11" ) %>% count(street) %>% arrange(desc(n)) %>% top_n(11)
+unsafe_street_RoxDorch <- unsafe_street_RoxDorch[c(1:3,5:11),]
+unsafe_street_RoxDorch$Crime_Count <- unsafe_street_RoxDorch$n
+#unsafe_street_RoxDorch
+```
+
+Unsafe Streets(Shooting) in Boston
+```{r}
+unsafe_street_shooting = subset(crime_shooting) %>% count(street) %>% arrange(desc(n)) %>% top_n(11)
+unsafe_streets_shooting <- unsafe_street_shooting[c(1:4),]
+unsafe_streets_shooting$Shooting_Count <- unsafe_streets_shooting$n
+
+```
+
+Unsafe streets in boston, and Unsafe streets in Roxbury and Dorchester
+```{r}
+t1 <- ggplot(unsafe_streets, aes(area=Crime_Count,label=street,fill=Crime_Count))+geom_treemap()+ geom_treemap_text(fontface = "italic", colour = "black", place = "centre",grow = FALSE)+ggtitle("Tree Maps for Unsafest Streets") + scale_fill_gradient(low = "yellow3", high = "red")
+
+t2 <- ggplot(unsafe_street_RoxDorch, aes(area=Crime_Count,label=street,fill=Crime_Count))+geom_treemap()+ geom_treemap_text(fontface = "italic", colour = "black", place = "centre",grow = FALSE)+ggtitle("Unsafe Streets in Roxbury and Dorchester") + scale_fill_gradient(low = "light pink", high = "orange")
+
+t3 <- ggplot(unsafe_streets_shooting, aes(area=Shooting_Count,label=street,fill=Shooting_Count))+geom_treemap()+ geom_treemap_text(fontface = "italic", colour = "black", place = "centre",grow = FALSE)+ggtitle("Unsafe Streets- Shooting") + scale_fill_gradient(low = "beige", high = "brown")
+
+grid.arrange(t1,t2,t3)
+```
+
+
+Daily pattern of crimes on the unsafe streets
+```{r}
+unsafe_streets_trend<- crime_subset[crime_subset$street %in% unsafe_streets$street,]
+ggplot(data=summarise(group_by(unsafe_streets_trend,hour,street),crime_count=n()))+geom_line(aes(hour,crime_count,color=street))+scale_x_continuous(breaks=0:23,1)+xlab("Hour of day")+theme_classic()
+```
+Crimes increase in all these streets during the day, with most crimes accuring from 5 PM to 8 PM.
+Crimes in Boylston street and Washington street follow a very unpredictable pattern.
+
+
+Crimes which involved shooting
+```{r}
+shooting_offenses<-crime_shooting %>% count(offense_code_group) %>% arrange(desc(n)) %>% top_n(10)
+```
+
+```{r}
+ggplot(data=shooting_offenses,aes(x=reorder(offense_code_group,n),y=n))+geom_col(aes(fill=offense_code_group))+coord_flip()+scale_x_discrete(breaks=seq(0,600,100))+
+  xlab("Offense")+ylab("Number of shootings")+theme_classic()
+```
+
+
+
+
+
+
+
+
+
+
+
+
